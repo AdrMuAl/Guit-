@@ -1,0 +1,3 @@
+﻿  GUITClient.cpp
+D:\Tec\Guit--Server-y-Cliente\GUITClient\GUITClient\GUITClient.cpp(13,65): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+  GUITClient.vcxproj -> D:\Tec\Guit--Server-y-Cliente\GUITClient\x64\Debug\GUITClient.exe

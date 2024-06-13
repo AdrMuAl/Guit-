@@ -1,0 +1,18 @@
+﻿  GUITServer.cpp
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(117,64): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(139,62): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(144,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(155,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(170,91): warning C4267: 'argumento': conversión de 'size_t' a 'DWORD'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(238,71): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(259,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(273,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(284,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(302,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(313,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(330,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(341,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(358,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(368,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+D:\Tec\Guit--Server-y-Cliente\GUITServer\GUITServer\GUITServer.cpp(385,54): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+  GUITServer.vcxproj -> D:\Tec\Guit--Server-y-Cliente\GUITServer\x64\Debug\GUITServer.exe
