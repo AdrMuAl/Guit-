@@ -1,11 +1,19 @@
 ﻿  GUITServer.cpp
-C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(112,64): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
-C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(118,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
-C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(124,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
-C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(130,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
-C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(136,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
-C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(142,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
-C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(148,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
-C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(157,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
-C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(174,54): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(116,64): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(146,62): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(152,69): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(165,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(178,91): warning C4267: 'argumento': conversión de 'size_t' a 'DWORD'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(241,18): warning C4244: 'inicializando': conversión de 'sqlite3_int64' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(261,72): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(299,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(313,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(324,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(346,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(357,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(374,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(385,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(402,58): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(412,70): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\GUITServer\GUITServer.cpp(430,54): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
   GUITServer.vcxproj -> C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITServer\x64\Debug\GUITServer.exe
