@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
-
+#include <fstream>
 #pragma comment (lib, "WS2_32.lib")
 
 using namespace std;
@@ -41,13 +41,29 @@ void helpCommand(SOCKET& sock) {
     sendCommand(sock, command);
 }
 
-// Función para el comando 'guit add [-A] [name]'
-// Agrega un archivo específico o todos los archivos al repositorio
+// Función para el comando 'guit add <repo> <file> <content>'
+// Agrega un archivo específico al repositorio
 void addCommand(SOCKET& sock, const vector<string>& params) {
-    string command = "guit add";
-    for (const string& param : params) {
-        command += " " + param;
+    if (params.size() < 2) {
+        cerr << "Invalid add command usage. Expected: guit add <repo> <file>" << endl;
+        return;
     }
+
+    string repoPath = params[0];
+    string fileName = params[1];
+
+    ifstream file(fileName, ios::binary);
+    if (!file.is_open()) {
+        cerr << "Failed to open file: " << fileName << endl;
+        return;
+    }
+
+    // Leer el contenido del archivo
+    vector<char> fileContents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
+    string fileContentStr(fileContents.begin(), fileContents.end());
+    file.close();
+
+    string command = "guit add " + repoPath + " " + fileName + " " + fileContentStr;
     sendCommand(sock, command);
 }
 
