@@ -1,0 +1,10 @@
+Comparando archivos C:\USERS\CHRIS\DESKTOP\PRUEBAA\texto_2.txt y C:\USERS\CHRIS\DESKTOP\PRUEBAA\TEXTO.TXT
+***** C:\USERS\CHRIS\DESKTOP\PRUEBAA\texto_2.txt
+Buenos dias
+Espero que salgas de Chile
+Gracias
+***** C:\USERS\CHRIS\DESKTOP\PRUEBAA\TEXTO.TXT
+Buenos dias
+Espero que salgas de Peru
+*****
+
