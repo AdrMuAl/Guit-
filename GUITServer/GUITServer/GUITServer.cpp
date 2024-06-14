@@ -282,56 +282,48 @@ void handleRollbackCommand(sqlite3* DB, const string& file, const string& commit
 }
 
 void handleStatusCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
-    if (file == "-A") {
-        string sql = "SELECT A.nombre, A.pendiente_commit FROM Archivos A WHERE A.pendiente_commit = 1;";
-        sqlite3_stmt* stmt;
-        int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
+    string response;
 
-        if (rc != SQLITE_OK) {
-            string errorMessage = "Failed to execute status command: " + string(sqlite3_errmsg(DB));
-            send(clientSocket, errorMessage.c_str(), errorMessage.size() + 1, 0);
-            return;
-        }
+    string sql = R"(
+        SELECT C.id, C.mensaje, C.fecha
+        FROM Commits C
+        WHERE C.repositorio_id IN (
+            SELECT id
+            FROM Repositorios
+            WHERE nombre = ?
+        )
+        ORDER BY C.fecha DESC
+        LIMIT 2;
+    )";
 
-        string response;
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-            string fileName = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-            int pendingCommit = sqlite3_column_int(stmt, 1);
-            response += "File: " + fileName + " - " + (pendingCommit ? "Pending Commit" : "Committed") + "\n";
-        }
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
 
+    if (rc != SQLITE_OK) {
+        response = "Failed to execute status command: " + string(sqlite3_errmsg(DB));
         send(clientSocket, response.c_str(), response.size() + 1, 0);
-        sqlite3_finalize(stmt);
+        return;
     }
-    else {
-        string sql = "SELECT A.contenido FROM Archivos A INNER JOIN Commits C ON A.repositorio_id = C.repositorio_id WHERE A.nombre = ? AND C.id = ? ORDER BY C.fecha DESC;";
-        sqlite3_stmt* stmt;
-        int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
 
-        if (rc != SQLITE_OK) {
-            string errorMessage = "Failed to execute status command: " + string(sqlite3_errmsg(DB));
-            send(clientSocket, errorMessage.c_str(), errorMessage.size() + 1, 0);
-            return;
-        }
+    sqlite3_bind_text(stmt, 1, file.c_str(), -1, SQLITE_STATIC);
 
-        sqlite3_bind_text(stmt, 1, file.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(stmt, 2, file.c_str(), -1, SQLITE_STATIC);
-
-        string response;
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-            response += "Checksum: " + string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0))) + "\n";
-            response += "Fecha: " + string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1))) + "\n";
-            response += "Mensaje: " + string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))) + "\n\n";
-        }
-
-        if (response.empty()) {
-            response = "No versions found for file: " + file;
-        }
-
-        send(clientSocket, response.c_str(), response.size() + 1, 0);
-        sqlite3_finalize(stmt);
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int commitId = sqlite3_column_int(stmt, 0);
+        string message = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        string date = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        response += "Commit ID: " + to_string(commitId) + " - Date: " + date + " - Message: " + message + "\n";
     }
+
+    sqlite3_finalize(stmt);
+
+    if (response.empty()) {
+        response = "No changes found for: " + file;
+    }
+
+    send(clientSocket, response.c_str(), response.size() + 1, 0);
 }
+
+
 
 void handleSyncCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
     string sql = "SELECT contenido FROM Archivos A WHERE A.nombre = ? ORDER BY A.id DESC LIMIT 1;";
