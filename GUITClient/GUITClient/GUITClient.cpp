@@ -87,6 +87,15 @@ void commitCommand(SOCKET& sock, const string& message) {
     // Adjuntar los archivos pendientes de commit al comando
     for (const auto& file : pendingFiles) {
         command += " " + file.first + " " + file.second;
+
+        // Crear una copia de seguridad del archivo
+        ofstream backupFile(file.first + ".bak", ios::binary);
+        if (!backupFile.is_open()) {
+            cerr << "Failed to create backup file for: " << file.first << endl;
+            return;
+        }
+        backupFile.write(file.second.c_str(), file.second.size());
+        backupFile.close();
     }
 
     // Enviar el comando al servidor
@@ -109,9 +118,25 @@ void rollbackCommand(SOCKET& sock, const string& file, const string& commitId) {
 }
 
 // Función para el comando 'guit reset <file>'
-void resetCommand(SOCKET& sock, const string& file) {
-    string command = "guit reset " + file;
-    sendCommand(sock, command);
+void resetCommand(const string& file) {
+    ifstream inFile(file + ".bak", ios::binary);
+    if (!inFile.is_open()) {
+        cerr << "No backup file found for: " << file << endl;
+        return;
+    }
+
+    ofstream outFile(file, ios::binary);
+    if (!outFile.is_open()) {
+        cerr << "Failed to open file for writing: " << file << endl;
+        return;
+    }
+
+    outFile << inFile.rdbuf();
+
+    inFile.close();
+    outFile.close();
+
+    cout << "File reset to the last committed version: " << file << endl;
 }
 
 // Función para el comando 'guit sync <file>'
@@ -205,7 +230,7 @@ int main() {
                     rollbackCommand(sock, tokens[2], tokens[3]);
                 }
                 else if (subCommand == "reset" && tokens.size() == 3) {
-                    resetCommand(sock, tokens[2]);
+                    resetCommand(tokens[2]);
                 }
                 else if (subCommand == "sync" && tokens.size() == 3) {
                     syncCommand(sock, tokens[2]);

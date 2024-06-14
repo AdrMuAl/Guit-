@@ -281,8 +281,6 @@ void handleRollbackCommand(sqlite3* DB, const string& file, const string& commit
     send(clientSocket, response.c_str(), response.size() + 1, 0);
 }
 
-
-
 void handleStatusCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
     if (file == "-A") {
         string sql = "SELECT A.nombre, A.pendiente_commit FROM Archivos A WHERE A.pendiente_commit = 1;";
@@ -333,34 +331,6 @@ void handleStatusCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
         send(clientSocket, response.c_str(), response.size() + 1, 0);
         sqlite3_finalize(stmt);
     }
-}
-
-void handleResetCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
-    string sql = "SELECT contenido FROM Archivos A WHERE A.nombre = ? ORDER BY A.id DESC LIMIT 1;";
-    sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
-
-    if (rc != SQLITE_OK) {
-        string errorMessage = "Failed to execute reset command: " + string(sqlite3_errmsg(DB));
-        send(clientSocket, errorMessage.c_str(), errorMessage.size() + 1, 0);
-        return;
-    }
-
-    sqlite3_bind_text(stmt, 1, file.c_str(), -1, SQLITE_STATIC);
-
-    string response;
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
-        ofstream outFile(file, ios::binary);
-        outFile.write(reinterpret_cast<const char*>(sqlite3_column_blob(stmt, 0)), sqlite3_column_bytes(stmt, 0));
-        outFile.close();
-        response = "File reset to the latest version";
-    }
-    else {
-        response = "File not found or no versions available";
-    }
-
-    send(clientSocket, response.c_str(), response.size() + 1, 0);
-    sqlite3_finalize(stmt);
 }
 
 void handleSyncCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
@@ -454,9 +424,6 @@ void processClientMessage(SOCKET clientSocket, sqlite3* DB, const string& messag
             }
             else if (subCommand == "rollback" && tokens.size() == 4) {
                 handleRollbackCommand(DB, tokens[2], tokens[3], clientSocket);
-            }
-            else if (subCommand == "reset" && tokens.size() == 3) {
-                handleResetCommand(DB, tokens[2], clientSocket);
             }
             else if (subCommand == "sync" && tokens.size() == 3) {
                 handleSyncCommand(DB, tokens[2], clientSocket);

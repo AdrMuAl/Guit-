@@ -1,1 +1,2 @@
-hola
+Este es el contenido inicial del archivo.
+

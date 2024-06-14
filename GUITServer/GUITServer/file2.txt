@@ -1,0 +1,2 @@
+Este es el contenido inicial del archivo.
+Esta es una nueva línea agregada a file2.txt.
