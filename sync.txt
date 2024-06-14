@@ -1,0 +1,60 @@
+
+//Va en el cliente
+
+void syncCommand(SOCKET& sock, const string& file) {
+    string command = "guit sync " + file;
+    sendCommand(sock, command);
+
+    // Recibir el contenido del archivo del servidor
+    char buf[4096];
+    ZeroMemory(buf, 4096);
+    int bytesReceived = recv(sock, buf, 4096, 0);
+    if (bytesReceived > 0) {
+        string fileContent(buf, 0, bytesReceived);
+
+        // Escribir el contenido recibido en el archivo local
+        ofstream outFile(file, ios::binary);
+        if (!outFile.is_open()) {
+            cerr << "Failed to open file for writing: " << file << endl;
+            return;
+        }
+
+        outFile.write(fileContent.c_str(), fileContent.size());
+        outFile.close();
+
+        cout << "File synced with server: " << file << endl;
+    }
+    else {
+        cerr << "Failed to receive file content from server" << endl;
+    }
+}
+
+// Va en el server
+void handleSyncCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
+    const char* SELECT_LATEST_VERSION_SQL = "SELECT V.contenido FROM Versiones V INNER JOIN Archivos A ON V.archivo_id = A.id WHERE A.nombre = ? ORDER BY V.fecha DESC LIMIT 1;";
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(DB, SELECT_LATEST_VERSION_SQL, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        cerr << "Error preparing SELECT_LATEST_VERSION_SQL: " << sqlite3_errmsg(DB) << endl;
+        string errorMessage = "Failed to retrieve latest version of the file";
+        send(clientSocket, errorMessage.c_str(), errorMessage.size() + 1, 0);
+        return;
+    }
+
+    sqlite3_bind_text(stmt, 1, file.c_str(), -1, SQLITE_STATIC);
+
+    string response;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* blob = static_cast<const char*>(sqlite3_column_blob(stmt, 0));
+        int blobSize = sqlite3_column_bytes(stmt, 0);
+        response.assign(blob, blobSize);
+
+        send(clientSocket, response.c_str(), response.size(), 0);
+    }
+    else {
+        response = "File not found or no versions available";
+        send(clientSocket, response.c_str(), response.size() + 1, 0);
+    }
+
+    sqlite3_finalize(stmt);
+}
