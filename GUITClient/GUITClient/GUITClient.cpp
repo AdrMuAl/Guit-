@@ -4,9 +4,13 @@
 #include <vector>
 #include <sstream>
 #include <fstream>
+#include <map>
 #pragma comment (lib, "WS2_32.lib")
 
 using namespace std;
+
+// Mapa para almacenar archivos pendientes de commit
+map<string, string> pendingFiles;
 
 // Función para enviar un comando al servidor y recibir la respuesta
 void sendCommand(SOCKET& sock, const string& command) {
@@ -28,22 +32,19 @@ void sendCommand(SOCKET& sock, const string& command) {
 }
 
 // Función para el comando 'guit init <name>'
-// Inicializa un nuevo repositorio en el servidor
 void initCommand(SOCKET& sock, const string& name) {
     string command = "guit init " + name;
     sendCommand(sock, command);
 }
 
 // Función para el comando 'guit help'
-// Muestra la lista de comandos disponibles
 void helpCommand(SOCKET& sock) {
     string command = "guit help";
     sendCommand(sock, command);
 }
 
-// Función para el comando 'guit add <repo> <file> <content>'
-// Agrega un archivo específico al repositorio
-void addCommand(SOCKET& sock, const vector<string>& params) {
+// Función para el comando 'guit add <repo> <file>'
+void addCommand(const vector<string>& params) {
     if (params.size() < 2) {
         cerr << "Invalid add command usage. Expected: guit add <repo> <file>" << endl;
         return;
@@ -63,47 +64,52 @@ void addCommand(SOCKET& sock, const vector<string>& params) {
     string fileContentStr(fileContents.begin(), fileContents.end());
     file.close();
 
-    string command = "guit add " + repoPath + " " + fileName + " " + fileContentStr;
-    sendCommand(sock, command);
+    // Almacenar el contenido del archivo en el mapa de archivos pendientes
+    pendingFiles[fileName] = fileContentStr;
+    cout << "File added: " << fileName << " (pending commit)" << endl;
 }
 
 // Función para el comando 'guit commit <mensaje>'
-// Realiza un commit con un mensaje descriptivo
 void commitCommand(SOCKET& sock, const string& message) {
     string command = "guit commit " + message;
+
+    // Adjuntar los archivos pendientes de commit al comando
+    for (const auto& file : pendingFiles) {
+        command += " " + file.first + " " + file.second;
+    }
+
+    // Enviar el comando al servidor
     sendCommand(sock, command);
+
+    // Limpiar los archivos pendientes
+    pendingFiles.clear();
 }
 
 // Función para el comando 'guit status <file>'
-// Muestra el estado de un archivo específico
 void statusCommand(SOCKET& sock, const string& file) {
     string command = "guit status " + file;
     sendCommand(sock, command);
 }
 
 // Función para el comando 'guit rollback <file> <commit>'
-// Reverte un archivo a una versión específica indicada por el ID de commit
 void rollbackCommand(SOCKET& sock, const string& file, const string& commitId) {
     string command = "guit rollback " + file + " " + commitId;
     sendCommand(sock, command);
 }
 
 // Función para el comando 'guit reset <file>'
-// Restaura un archivo al último commit
 void resetCommand(SOCKET& sock, const string& file) {
     string command = "guit reset " + file;
     sendCommand(sock, command);
 }
 
 // Función para el comando 'guit sync <file>'
-// Sincroniza un archivo con el servidor
 void syncCommand(SOCKET& sock, const string& file) {
     string command = "guit sync " + file;
     sendCommand(sock, command);
 }
 
 // Función para el comando 'guit query <sql>'
-// Permite al cliente enviar consultas SQL directamente al servidor y obtener resultados
 void queryCommand(SOCKET& sock, const string& sql) {
     string command = "guit query " + sql;
     sendCommand(sock, command);
@@ -176,7 +182,7 @@ int main() {
                 }
                 else if (subCommand == "add") {
                     vector<string> params(tokens.begin() + 2, tokens.end());
-                    addCommand(sock, params);
+                    addCommand(params);
                 }
                 else if (subCommand == "commit" && tokens.size() >= 3) {
                     commitCommand(sock, userInput.substr(11));

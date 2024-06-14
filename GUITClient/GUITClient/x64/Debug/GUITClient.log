@@ -1,3 +1,3 @@
 ﻿  GUITClient.cpp
-C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITClient\GUITClient\GUITClient.cpp(13,65): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
+C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITClient\GUITClient\GUITClient.cpp(17,65): warning C4267: 'argumento': conversión de 'size_t' a 'int'; posible pérdida de datos
   GUITClient.vcxproj -> C:\Users\diego\Documents\Semestre III\Algoritmos Y Estructuras De Datos II\P3D2\GUITClient\x64\Debug\GUITClient.exe
