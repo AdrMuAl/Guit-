@@ -12,6 +12,9 @@ using namespace std;
 // Mapa para almacenar archivos pendientes de commit
 map<string, string> pendingFiles;
 
+// Último commit ID recibido del servidor
+string lastCommitId;
+
 // Función para enviar un comando al servidor y recibir la respuesta
 void sendCommand(SOCKET& sock, const string& command) {
     int sendResult = send(sock, command.c_str(), command.size() + 1, 0);
@@ -27,7 +30,15 @@ void sendCommand(SOCKET& sock, const string& command) {
     ZeroMemory(buf, 4096);
     int bytesReceived = recv(sock, buf, 4096, 0);
     if (bytesReceived > 0) {
-        cout << "Server: " << string(buf, 0, bytesReceived) << endl;
+        string response(buf, 0, bytesReceived);
+        cout << "Server: " << response << endl;
+
+        // Verificar si la respuesta contiene un commit ID
+        size_t commitIdPos = response.find("Commit ID: ");
+        if (commitIdPos != string::npos) {
+            lastCommitId = response.substr(commitIdPos + 11);
+            cout << "Stored commit ID: " << lastCommitId << endl;
+        }
     }
 }
 
