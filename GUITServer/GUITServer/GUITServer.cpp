@@ -52,7 +52,6 @@ void createDatabase(const char* databaseName) {
         commit_id INTEGER,
         contenido BLOB,
         checksum TEXT,
-        fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (archivo_id) REFERENCES Archivos (id),
         FOREIGN KEY (commit_id) REFERENCES Commits (id)
     );
@@ -183,7 +182,7 @@ void handleCommitCommand(sqlite3* DB, const vector<string>& params, const string
         // Insertar archivo en la base de datos si no existe
         string insertFileSql = "INSERT INTO Archivos (repositorio_id, nombre, contenido, pendiente_commit) VALUES ((SELECT id FROM Repositorios ORDER BY id DESC LIMIT 1), ?, ?, 0) ON CONFLICT(nombre) DO UPDATE SET contenido=excluded.contenido, pendiente_commit=0;";
         sqlite3_stmt* fileStmt;
-        int rc = sqlite3_prepare_v2(DB, insertFileSql.c_str(), -1, &fileStmt, NULL);
+        rc = sqlite3_prepare_v2(DB, insertFileSql.c_str(), -1, &fileStmt, NULL);
         if (rc != SQLITE_OK) {
             cerr << "Error preparing statement: " << sqlite3_errmsg(DB) << endl;
             continue;
@@ -222,8 +221,67 @@ void handleCommitCommand(sqlite3* DB, const vector<string>& params, const string
         sqlite3_finalize(versionStmt);
     }
 
-    send(clientSocket, "Commit created successfully", 27, 0);
+    string response = "Commit created successfully. Commit ID: " + to_string(commitId);
+    send(clientSocket, response.c_str(), response.size() + 1, 0);
 }
+
+void handleRollbackCommand(sqlite3* DB, const string& file, const string& commitId, SOCKET clientSocket) {
+    // Verificar si el commit especificado existe
+    string checkCommitSql = "SELECT repositorio_id, mensaje, fecha FROM Commits WHERE id = ?;";
+    sqlite3_stmt* checkCommitStmt;
+    int rc = sqlite3_prepare_v2(DB, checkCommitSql.c_str(), -1, &checkCommitStmt, NULL);
+
+    if (rc != SQLITE_OK) {
+        string errorMessage = "Failed to execute rollback command: " + string(sqlite3_errmsg(DB));
+        send(clientSocket, errorMessage.c_str(), errorMessage.size() + 1, 0);
+        return;
+    }
+
+    sqlite3_bind_text(checkCommitStmt, 1, commitId.c_str(), -1, SQLITE_STATIC);
+
+    if (sqlite3_step(checkCommitStmt) != SQLITE_ROW) {
+        string response = "File or commit not found";
+        send(clientSocket, response.c_str(), response.size() + 1, 0);
+        sqlite3_finalize(checkCommitStmt);
+        return;
+    }
+
+    int repoId = sqlite3_column_int(checkCommitStmt, 0);
+    const char* mensaje = reinterpret_cast<const char*>(sqlite3_column_text(checkCommitStmt, 1));
+    const char* fecha = reinterpret_cast<const char*>(sqlite3_column_text(checkCommitStmt, 2));
+    sqlite3_finalize(checkCommitStmt);
+
+    // Crear un nuevo commit con el contenido del commit especificado
+    string insertCommitSql = "INSERT INTO Commits (repositorio_id, mensaje, fecha) VALUES (?, ?, ?);";
+    sqlite3_stmt* insertCommitStmt;
+    rc = sqlite3_prepare_v2(DB, insertCommitSql.c_str(), -1, &insertCommitStmt, NULL);
+    if (rc != SQLITE_OK) {
+        cerr << "Error preparing statement: " << sqlite3_errmsg(DB) << endl;
+        send(clientSocket, "Error preparing statement", 26, 0);
+        return;
+    }
+
+    sqlite3_bind_int(insertCommitStmt, 1, repoId);
+    sqlite3_bind_text(insertCommitStmt, 2, mensaje, -1, SQLITE_STATIC);
+    sqlite3_bind_text(insertCommitStmt, 3, fecha, -1, SQLITE_STATIC);
+
+    rc = sqlite3_step(insertCommitStmt);
+    if (rc != SQLITE_DONE) {
+        cerr << "Error inserting commit: " << sqlite3_errmsg(DB) << endl;
+        send(clientSocket, "Error inserting commit", 22, 0);
+        sqlite3_finalize(insertCommitStmt);
+        return;
+    }
+    sqlite3_finalize(insertCommitStmt);
+
+    // Obtener el ID del nuevo commit
+    int newCommitId = sqlite3_last_insert_rowid(DB);
+
+    string response = "Rollback successful. File " + file + " reverted to commit " + commitId + " as new commit " + to_string(newCommitId);
+    send(clientSocket, response.c_str(), response.size() + 1, 0);
+}
+
+
 
 void handleStatusCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
     if (file == "-A") {
@@ -248,7 +306,7 @@ void handleStatusCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
         sqlite3_finalize(stmt);
     }
     else {
-        string sql = "SELECT V.checksum, V.fecha, C.mensaje FROM Versiones V INNER JOIN Archivos A ON V.archivo_id = A.id INNER JOIN Commits C ON V.commit_id = C.id WHERE A.nombre = ? ORDER BY V.fecha DESC;";
+        string sql = "SELECT A.contenido FROM Archivos A INNER JOIN Commits C ON A.repositorio_id = C.repositorio_id WHERE A.nombre = ? AND C.id = ? ORDER BY C.fecha DESC;";
         sqlite3_stmt* stmt;
         int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
 
@@ -259,6 +317,7 @@ void handleStatusCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
         }
 
         sqlite3_bind_text(stmt, 1, file.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, file.c_str(), -1, SQLITE_STATIC);
 
         string response;
         while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -276,41 +335,8 @@ void handleStatusCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
     }
 }
 
-void handleRollbackCommand(sqlite3* DB, const string& file, const string& commitId, SOCKET clientSocket) {
-    string sql = "SELECT V.contenido FROM Versiones V INNER JOIN Archivos A ON V.archivo_id = A.id WHERE A.nombre = ? AND V.commit_id = ?;";
-    sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
-
-    if (rc != SQLITE_OK) {
-        string errorMessage = "Failed to execute rollback command: " + string(sqlite3_errmsg(DB));
-        send(clientSocket, errorMessage.c_str(), errorMessage.size() + 1, 0);
-        return;
-    }
-
-    sqlite3_bind_text(stmt, 1, file.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, commitId.c_str(), -1, SQLITE_STATIC);
-
-    string response;
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
-        const void* blob = sqlite3_column_blob(stmt, 0);
-        int blobSize = sqlite3_column_bytes(stmt, 0);
-
-        ofstream outFile(file, ios::binary);
-        outFile.write(reinterpret_cast<const char*>(blob), blobSize);
-        outFile.close();
-
-        response = "File rolled back to commit " + commitId;
-    }
-    else {
-        response = "File or commit not found";
-    }
-
-    send(clientSocket, response.c_str(), response.size() + 1, 0);
-    sqlite3_finalize(stmt);
-}
-
 void handleResetCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
-    string sql = "SELECT contenido FROM Versiones V INNER JOIN Archivos A ON V.archivo_id = A.id WHERE A.nombre = ? ORDER BY V.fecha DESC LIMIT 1;";
+    string sql = "SELECT contenido FROM Archivos A WHERE A.nombre = ? ORDER BY A.id DESC LIMIT 1;";
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
 
@@ -338,7 +364,7 @@ void handleResetCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
 }
 
 void handleSyncCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
-    string sql = "SELECT contenido FROM Versiones V INNER JOIN Archivos A ON V.archivo_id = A.id WHERE A.nombre = ? ORDER BY V.fecha DESC LIMIT 1;";
+    string sql = "SELECT contenido FROM Archivos A WHERE A.nombre = ? ORDER BY A.id DESC LIMIT 1;";
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
 
