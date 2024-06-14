@@ -33,4 +33,7 @@
       <Filter>Archivos de origen</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="file1.txt" />
+  </ItemGroup>
 </Project>

@@ -58,7 +58,6 @@ void createDatabase(const char* databaseName) {
     );
 )";
 
-
     char* errorMessage;
     exit = sqlite3_exec(DB, sql, 0, 0, &errorMessage);
 
@@ -107,7 +106,7 @@ void handleHelpCommand(SOCKET clientSocket) {
         "Available commands:\n"
         "guit init <name>\n"
         "guit help\n"
-        "guit add <repo> <file> <content>\n"
+        "guit add [-A] [name]\n"
         "guit commit <mensaje>\n"
         "guit status <file>\n"
         "guit rollback <file> <commit>\n"
@@ -116,66 +115,6 @@ void handleHelpCommand(SOCKET clientSocket) {
         "guit query <sql>";
     send(clientSocket, helpMessage.c_str(), helpMessage.size() + 1, 0);
 }
-
-void handleAddCommand(sqlite3* DB, const vector<string>& params, SOCKET clientSocket) {
-    if (params.size() < 2) {
-        send(clientSocket, "No files specified or file content missing", 42, 0);
-        return;
-    }
-
-    string response;
-    string repoPath = params[0];
-    string fileName = params[1];
-
-    ifstream file(fileName, ios::binary);
-    if (!file.is_open()) {
-        cerr << "Failed to open file: " << fileName << endl;
-        send(clientSocket, "Failed to open file", 19, 0);
-        return;
-    }
-
-    // Leer el contenido del archivo
-    vector<char> fileContents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
-    file.close();
-
-    // Guardar el archivo en el repositorio
-    ofstream outFile(repoPath + "/" + fileName, ios::binary);
-    if (!outFile.is_open()) {
-        cerr << "Failed to write file to repository: " << fileName << endl;
-        send(clientSocket, "Failed to write file to repository", 35, 0);
-        return;
-    }
-    outFile.write(fileContents.data(), fileContents.size());
-    outFile.close();
-
-    // Insertar archivo en la base de datos
-    string sql = "INSERT INTO Archivos (repositorio_id, nombre, contenido) VALUES ((SELECT id FROM Repositorios WHERE nombre = ?), ?, ?);";
-    sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
-    if (rc != SQLITE_OK) {
-        response = "Failed to prepare SQL statement for file: " + fileName + "\n";
-        send(clientSocket, response.c_str(), response.size() + 1, 0);
-        return;
-    }
-
-    sqlite3_bind_text(stmt, 1, repoPath.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, fileName.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_blob(stmt, 3, fileContents.data(), fileContents.size(), SQLITE_TRANSIENT);
-
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) {
-        response = "Failed to execute SQL statement for file: " + fileName + "\n";
-    }
-    else {
-        response = "File added: " + fileName + "\n";
-    }
-
-    sqlite3_finalize(stmt);
-    send(clientSocket, response.c_str(), response.size() + 1, 0);
-}
-
-
-
 
 string calculateMD5(const vector<char>& data) {
     HCRYPTPROV hProv = 0;
@@ -202,66 +141,68 @@ string calculateMD5(const vector<char>& data) {
     return md5String;
 }
 
-void handleCommitCommand(sqlite3* DB, const string& message, SOCKET clientSocket) {
-    // Obtener todos los archivos pendientes de commit
-    string sql = R"(
-        SELECT id, contenido FROM Archivos
-        WHERE repositorio_id = (SELECT id FROM Repositorios ORDER BY id DESC LIMIT 1);
-    )";
-    sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
+void handleCommitCommand(sqlite3* DB, const vector<string>& params, const string& message, SOCKET clientSocket) {
+    if (params.size() < 2) {
+        send(clientSocket, "No files specified for commit", 29, 0);
+        return;
+    }
+
+    // Insertar commit en la base de datos
+    string insertCommitSql = "INSERT INTO Commits (repositorio_id, mensaje) VALUES ((SELECT id FROM Repositorios ORDER BY id DESC LIMIT 1), ?);";
+    sqlite3_stmt* commitStmt;
+    int rc = sqlite3_prepare_v2(DB, insertCommitSql.c_str(), -1, &commitStmt, NULL);
     if (rc != SQLITE_OK) {
         cerr << "Error preparing statement: " << sqlite3_errmsg(DB) << endl;
         send(clientSocket, "Error preparing statement", 26, 0);
         return;
     }
 
-    vector<pair<int, vector<char>>> files;
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        int id = sqlite3_column_int(stmt, 0);
-        const char* blob = static_cast<const char*>(sqlite3_column_blob(stmt, 1));
-        int blobSize = sqlite3_column_bytes(stmt, 1);
-        files.emplace_back(id, vector<char>(blob, blob + blobSize));
-    }
-    sqlite3_finalize(stmt);
+    sqlite3_bind_text(commitStmt, 1, message.c_str(), -1, SQLITE_STATIC);
 
-    if (files.empty()) {
-        send(clientSocket, "No files to commit", 19, 0);
+    rc = sqlite3_step(commitStmt);
+    if (rc != SQLITE_DONE) {
+        cerr << "Error inserting commit: " << sqlite3_errmsg(DB) << endl;
+        send(clientSocket, "Error inserting commit", 22, 0);
+        sqlite3_finalize(commitStmt);
         return;
     }
+    sqlite3_finalize(commitStmt);
 
-    // Calcular el checksum de cada archivo
-    for (const auto& file : files) {
-        int id = file.first;
-        const vector<char>& content = file.second;
-        string checksum = calculateMD5(content);
+    // Obtener el ID del commit recién insertado
+    int commitId = sqlite3_last_insert_rowid(DB);
 
-        // Insertar commit
-        string insertCommitSql = R"(
-            INSERT INTO Commits (repositorio_id, mensaje, checksum)
-            VALUES ((SELECT id FROM Repositorios ORDER BY id DESC LIMIT 1), ?, ?);
-        )";
-        sqlite3_stmt* commitStmt;
-        rc = sqlite3_prepare_v2(DB, insertCommitSql.c_str(), -1, &commitStmt, NULL);
+    // Procesar cada archivo
+    for (size_t i = 1; i < params.size(); i += 2) {
+        string fileName = params[i];
+        string fileContentStr = params[i + 1];
+        vector<char> fileContent(fileContentStr.begin(), fileContentStr.end());
+
+        // Calcular el checksum del archivo
+        string checksum = calculateMD5(fileContent);
+
+        // Insertar archivo en la base de datos si no existe
+        string insertFileSql = "INSERT INTO Archivos (repositorio_id, nombre, contenido, pendiente_commit) VALUES ((SELECT id FROM Repositorios ORDER BY id DESC LIMIT 1), ?, ?, 0) ON CONFLICT(nombre) DO UPDATE SET contenido=excluded.contenido, pendiente_commit=0;";
+        sqlite3_stmt* fileStmt;
+        int rc = sqlite3_prepare_v2(DB, insertFileSql.c_str(), -1, &fileStmt, NULL);
         if (rc != SQLITE_OK) {
             cerr << "Error preparing statement: " << sqlite3_errmsg(DB) << endl;
             continue;
         }
 
-        sqlite3_bind_text(commitStmt, 1, message.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(commitStmt, 2, checksum.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(fileStmt, 1, fileName.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_blob(fileStmt, 2, fileContent.data(), fileContent.size(), SQLITE_TRANSIENT);
 
-        rc = sqlite3_step(commitStmt);
+        rc = sqlite3_step(fileStmt);
         if (rc != SQLITE_DONE) {
-            cerr << "Error inserting commit: " << sqlite3_errmsg(DB) << endl;
+            cerr << "Error inserting file: " << sqlite3_errmsg(DB) << endl;
         }
-        sqlite3_finalize(commitStmt);
+        sqlite3_finalize(fileStmt);
+
+        // Obtener el ID del archivo
+        int fileId = sqlite3_last_insert_rowid(DB);
 
         // Insertar versión del archivo
-        string insertVersionSql = R"(
-            INSERT INTO Versiones (archivo_id, commit_id, contenido, checksum)
-            VALUES (?, (SELECT id FROM Commits ORDER BY id DESC LIMIT 1), ?, ?);
-        )";
+        string insertVersionSql = "INSERT INTO Versiones (archivo_id, commit_id, contenido, checksum) VALUES (?, ?, ?, ?);";
         sqlite3_stmt* versionStmt;
         rc = sqlite3_prepare_v2(DB, insertVersionSql.c_str(), -1, &versionStmt, NULL);
         if (rc != SQLITE_OK) {
@@ -269,9 +210,10 @@ void handleCommitCommand(sqlite3* DB, const string& message, SOCKET clientSocket
             continue;
         }
 
-        sqlite3_bind_int(versionStmt, 1, id);
-        sqlite3_bind_blob(versionStmt, 2, content.data(), content.size(), SQLITE_TRANSIENT);
-        sqlite3_bind_text(versionStmt, 3, checksum.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_int(versionStmt, 1, fileId);
+        sqlite3_bind_int(versionStmt, 2, commitId);
+        sqlite3_bind_blob(versionStmt, 3, fileContent.data(), fileContent.size(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(versionStmt, 4, checksum.c_str(), -1, SQLITE_STATIC);
 
         rc = sqlite3_step(versionStmt);
         if (rc != SQLITE_DONE) {
@@ -283,32 +225,55 @@ void handleCommitCommand(sqlite3* DB, const string& message, SOCKET clientSocket
     send(clientSocket, "Commit created successfully", 27, 0);
 }
 
-
-
-
 void handleStatusCommand(sqlite3* DB, const string& file, SOCKET clientSocket) {
-    string sql = "SELECT V.checksum, V.fecha FROM Versiones V INNER JOIN Archivos A ON V.archivo_id = A.id WHERE A.nombre = ? ORDER BY V.fecha DESC LIMIT 1;";
-    sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
+    if (file == "-A") {
+        string sql = "SELECT A.nombre, A.pendiente_commit FROM Archivos A WHERE A.pendiente_commit = 1;";
+        sqlite3_stmt* stmt;
+        int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
 
-    if (rc != SQLITE_OK) {
-        string errorMessage = "Failed to execute status command: " + string(sqlite3_errmsg(DB));
-        send(clientSocket, errorMessage.c_str(), errorMessage.size() + 1, 0);
-        return;
-    }
+        if (rc != SQLITE_OK) {
+            string errorMessage = "Failed to execute status command: " + string(sqlite3_errmsg(DB));
+            send(clientSocket, errorMessage.c_str(), errorMessage.size() + 1, 0);
+            return;
+        }
 
-    sqlite3_bind_text(stmt, 1, file.c_str(), -1, SQLITE_STATIC);
+        string response;
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            string fileName = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+            int pendingCommit = sqlite3_column_int(stmt, 1);
+            response += "File: " + fileName + " - " + (pendingCommit ? "Pending Commit" : "Committed") + "\n";
+        }
 
-    string response;
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
-        response = "File: " + file + "\nChecksum: " + string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0))) + "\nFecha: " + string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+        send(clientSocket, response.c_str(), response.size() + 1, 0);
+        sqlite3_finalize(stmt);
     }
     else {
-        response = "File not found or no versions available";
-    }
+        string sql = "SELECT V.checksum, V.fecha, C.mensaje FROM Versiones V INNER JOIN Archivos A ON V.archivo_id = A.id INNER JOIN Commits C ON V.commit_id = C.id WHERE A.nombre = ? ORDER BY V.fecha DESC;";
+        sqlite3_stmt* stmt;
+        int rc = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, NULL);
 
-    send(clientSocket, response.c_str(), response.size() + 1, 0);
-    sqlite3_finalize(stmt);
+        if (rc != SQLITE_OK) {
+            string errorMessage = "Failed to execute status command: " + string(sqlite3_errmsg(DB));
+            send(clientSocket, errorMessage.c_str(), errorMessage.size() + 1, 0);
+            return;
+        }
+
+        sqlite3_bind_text(stmt, 1, file.c_str(), -1, SQLITE_STATIC);
+
+        string response;
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            response += "Checksum: " + string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0))) + "\n";
+            response += "Fecha: " + string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1))) + "\n";
+            response += "Mensaje: " + string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))) + "\n\n";
+        }
+
+        if (response.empty()) {
+            response = "No versions found for file: " + file;
+        }
+
+        send(clientSocket, response.c_str(), response.size() + 1, 0);
+        sqlite3_finalize(stmt);
+    }
 }
 
 void handleRollbackCommand(sqlite3* DB, const string& file, const string& commitId, SOCKET clientSocket) {
@@ -454,12 +419,9 @@ void processClientMessage(SOCKET clientSocket, sqlite3* DB, const string& messag
             else if (subCommand == "help") {
                 handleHelpCommand(clientSocket);
             }
-            else if (subCommand == "add") {
-                vector<string> params(tokens.begin() + 2, tokens.end());
-                handleAddCommand(DB, params, clientSocket);
-            }
             else if (subCommand == "commit" && tokens.size() >= 3) {
-                handleCommitCommand(DB, message.substr(11), clientSocket);
+                vector<string> params(tokens.begin() + 2, tokens.end());
+                handleCommitCommand(DB, params, message.substr(11), clientSocket);
             }
             else if (subCommand == "status" && tokens.size() == 3) {
                 handleStatusCommand(DB, tokens[2], clientSocket);
